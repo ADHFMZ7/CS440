@@ -12,15 +12,8 @@ bit_count    = 0
 # buffer to collect received bytes
 received = bytearray()
 
-def is_printable_byte(byte):
-    """Check if a byte represents a printable ASCII character"""
-    return 32 <= byte <= 126
-
 def on_clock_rising(gpio, level, tick):
     global current_byte, bit_count
-    # Add a small delay to ensure data is stable
-    time.sleep(0.0001)  # 100 microseconds delay
-    
     # sample data bit
     bit = pi.read(DATA_PIN)
     # shift into current_byte
@@ -30,14 +23,8 @@ def on_clock_rising(gpio, level, tick):
     if bit_count == 8:
         # full byte ready
         byte_value = current_byte & 0xFF
-        
-        # Only append if it's a printable ASCII character
-        if is_printable_byte(byte_value):
-            received.append(byte_value)
-            print(f"Received: 0x{byte_value:02X} ('{chr(byte_value)}')")
-        else:
-            print(f"Skipped non-printable byte: 0x{byte_value:02X}")
-            
+        received.append(byte_value)
+        print(f"Received byte: 0x{byte_value:02X}")
         # reset for next byte
         current_byte = 0
         bit_count    = 0
