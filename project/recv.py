@@ -5,28 +5,16 @@ import time
 DATA_PIN  = 23
 CLOCK_PIN = 24
 
-# Protocol constants
-START_BYTE = 0xAA
-END_BYTE = 0x55
-
 # state for assembling one byte
 current_byte = 0
 bit_count    = 0
 last_tick    = 0
 
-# Protocol state
-expecting_start = True
-data_byte = None
-checksum = None
-
 # buffer to collect received bytes
 received = bytearray()
 
-def verify_checksum(data, checksum):
-    return (data ^ START_BYTE) == checksum
-
 def on_clock_rising(gpio, level, tick):
-    global current_byte, bit_count, last_tick, expecting_start, data_byte, checksum
+    global current_byte, bit_count, last_tick
     
     # Check for timing errors (clocks too close together)
     if last_tick != 0 and (tick - last_tick) < 500:  # 500μs minimum between clocks
@@ -47,31 +35,16 @@ def on_clock_rising(gpio, level, tick):
     if bit_count == 8:
         # full byte ready
         byte_value = current_byte & 0xFF
+        received.append(byte_value)
         
-        if expecting_start:
-            if byte_value == START_BYTE:
-                expecting_start = False
-                data_byte = None
-                checksum = None
-            else:
-                print(f"Warning: Expected start byte (0x{START_BYTE:02X}), got 0x{byte_value:02X}")
-        elif data_byte is None:
-            data_byte = byte_value
-        elif checksum is None:
-            checksum = byte_value
-            if verify_checksum(data_byte, checksum):
-                received.append(data_byte)
-                # Print the character and flush to show it immediately
-                print(chr(data_byte), end='', flush=True)
-            else:
-                print(f"\nWarning: Checksum error for byte 0x{data_byte:02X}")
-        else:
-            if byte_value == END_BYTE:
-                expecting_start = True
-            else:
-                print(f"Warning: Expected end byte (0x{END_BYTE:02X}), got 0x{byte_value:02X}")
-                expecting_start = True
-        
+        # Print the actual byte with a small delay
+        try:
+            char = chr(byte_value)
+            print(char, end='', flush=True)
+            # time.sleep(0.01)  # 10ms delay to make it readable
+        except:
+            print(f"\\x{byte_value:02x}", end='', flush=True)  # Fallback to hex for non-printable chars
+            
         # reset for next byte
         current_byte = 0
         bit_count = 0
@@ -104,7 +77,7 @@ def main():
         # write all bytes out
         with open("received.bin", "wb") as f:
             f.write(received)
-        print(f"Wrote {len(received)} bytes to received.bin")
+        print(f"\nWrote {len(received)} bytes to received.bin")
 
 if __name__ == "__main__":
     main()
