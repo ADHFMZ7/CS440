@@ -5,16 +5,28 @@ import time
 DATA_PIN  = 23
 CLOCK_PIN = 24
 
+# Protocol constants
+START_BYTE = 0xAA
+END_BYTE = 0x55
+
 # state for assembling one byte
 current_byte = 0
 bit_count    = 0
 last_tick    = 0
 
+# Protocol state
+expecting_start = True
+data_byte = None
+checksum = None
+
 # buffer to collect received bytes
 received = bytearray()
 
+def verify_checksum(data, checksum):
+    return (data ^ START_BYTE) == checksum
+
 def on_clock_rising(gpio, level, tick):
-    global current_byte, bit_count, last_tick
+    global current_byte, bit_count, last_tick, expecting_start, data_byte, checksum
     
     # Check for timing errors (clocks too close together)
     if last_tick != 0 and (tick - last_tick) < 500:  # 500μs minimum between clocks
@@ -35,8 +47,30 @@ def on_clock_rising(gpio, level, tick):
     if bit_count == 8:
         # full byte ready
         byte_value = current_byte & 0xFF
-        received.append(byte_value)
-        print(f"Received byte: 0x{byte_value:02X}")
+        
+        if expecting_start:
+            if byte_value == START_BYTE:
+                expecting_start = False
+                data_byte = None
+                checksum = None
+            else:
+                print(f"Warning: Expected start byte (0x{START_BYTE:02X}), got 0x{byte_value:02X}")
+        elif data_byte is None:
+            data_byte = byte_value
+        elif checksum is None:
+            checksum = byte_value
+            if verify_checksum(data_byte, checksum):
+                received.append(data_byte)
+                print(f"Received byte: 0x{data_byte:02X}")
+            else:
+                print(f"Warning: Checksum error for byte 0x{data_byte:02X}")
+        else:
+            if byte_value == END_BYTE:
+                expecting_start = True
+            else:
+                print(f"Warning: Expected end byte (0x{END_BYTE:02X}), got 0x{byte_value:02X}")
+                expecting_start = True
+        
         # reset for next byte
         current_byte = 0
         bit_count = 0

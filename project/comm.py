@@ -46,6 +46,20 @@ class Connection:
             self.send_byte(byte)
 
     def send_byte(self, byte):
+        # Send start byte (0xAA)
+        self._send_raw_byte(0xAA)
+        
+        # Send data byte
+        self._send_raw_byte(byte)
+        
+        # Send checksum (simple XOR of data byte)
+        checksum = byte ^ 0xAA
+        self._send_raw_byte(checksum)
+        
+        # Send end byte (0x55)
+        self._send_raw_byte(0x55)
+
+    def _send_raw_byte(self, byte):
         # Ensure data line is LOW before starting
         self.pi.write(self.data_pin, 0)
         self.pi.write(self.clock_pin, 0)
