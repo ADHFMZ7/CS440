@@ -49,29 +49,29 @@ class Connection:
         # Ensure data line is LOW before starting
         self.pi.write(self.data_pin, 0)
         self.pi.write(self.clock_pin, 0)
-        time.sleep(0.001)  # 1ms delay to ensure stable start
+        time.sleep(0.0002)  # 200μs delay to ensure stable start
 
         for ix in range(7, -1, -1):
             # Set data line first
             bit = 1 if (byte >> ix) & 1 else 0
             self.pi.write(self.data_pin, bit)
-            time.sleep(0.001)  # 1ms delay
+            time.sleep(0.0001)  # 100μs delay
 
             # Then pulse clock
             self.pi.write(self.clock_pin, 1)
-            time.sleep(0.001)  # 1ms delay
+            time.sleep(0.0001)  # 100μs delay
             self.pi.write(self.clock_pin, 0)
-            time.sleep(0.001)  # 1ms delay
+            time.sleep(0.0001)  # 100μs delay
 
         # Set data line LOW after shifting
         self.pi.write(self.data_pin, 0)
-        time.sleep(0.001)  # 1ms delay
+        time.sleep(0.0001)  # 100μs delay
 
         # Pulse the latch after the byte is sent
         self.pi.write(self.latch_pin, 1)
-        time.sleep(0.001)  # 1ms delay
+        time.sleep(0.0001)  # 100μs delay
         self.pi.write(self.latch_pin, 0)
-        time.sleep(0.001)  # 1ms delay
+        time.sleep(0.0001)  # 100μs delay
 
     def cleanup(self):
         self.pi.stop()

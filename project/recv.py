@@ -8,12 +8,24 @@ CLOCK_PIN = 24
 # state for assembling one byte
 current_byte = 0
 bit_count    = 0
+last_tick    = 0
 
 # buffer to collect received bytes
 received = bytearray()
 
 def on_clock_rising(gpio, level, tick):
-    global current_byte, bit_count
+    global current_byte, bit_count, last_tick
+    
+    # Check for timing errors (clocks too close together)
+    if last_tick != 0 and (tick - last_tick) < 200:  # 200μs minimum between clocks
+        print(f"Warning: Clock timing error detected. Resetting byte.")
+        current_byte = 0
+        bit_count = 0
+        last_tick = tick
+        return
+        
+    last_tick = tick
+    
     # sample data bit
     bit = pi.read(DATA_PIN)
     # shift into current_byte
@@ -27,7 +39,7 @@ def on_clock_rising(gpio, level, tick):
         print(f"Received byte: 0x{byte_value:02X}")
         # reset for next byte
         current_byte = 0
-        bit_count    = 0
+        bit_count = 0
 
 def main():
     global pi
