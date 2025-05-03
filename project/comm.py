@@ -5,7 +5,7 @@ We take in a clock signal to make sure the two are syncronized
 """
 
 from dataclasses import dataclass
-import RPi.GPIO as GPIO
+import pigpio
 import time
 
 @dataclass
@@ -19,20 +19,24 @@ class Frame:
 class Connection:
     def __init__(self, data_pin, clock_pin):
         # Validate pins
-
-        # set clock pin as output
         self.data_pin = data_pin
         self.clock_pin = clock_pin
         self.latch_pin = 25  # Add latch pin
 
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setwarnings(False)
+        # Initialize pigpio
+        self.pi = pigpio.pi()
+        if not self.pi.connected:
+            raise RuntimeError("Could not connect to pigpio daemon")
 
-        GPIO.setup(self.clock_pin, GPIO.OUT)
-        GPIO.setup(self.data_pin, GPIO.OUT)
-        GPIO.setup(self.latch_pin, GPIO.OUT)  # Set up latch pin as output
-        GPIO.output(self.latch_pin, GPIO.LOW)  # Initialize latch to LOW
-
+        # Set up pins as outputs
+        self.pi.set_mode(self.clock_pin, pigpio.OUTPUT)
+        self.pi.set_mode(self.data_pin, pigpio.OUTPUT)
+        self.pi.set_mode(self.latch_pin, pigpio.OUTPUT)
+        
+        # Initialize all pins to LOW
+        self.pi.write(self.clock_pin, 0)
+        self.pi.write(self.data_pin, 0)
+        self.pi.write(self.latch_pin, 0)
 
     def send_file(self, filename: str):
         with open(filename, 'rb') as file:
@@ -41,60 +45,44 @@ class Connection:
         for byte in data:
             self.send_byte(byte)
 
-
     def send_byte(self, byte):
         for ix in range(7, -1, -1):
-            bit = GPIO.HIGH if (byte >> ix) & 1 else GPIO.LOW
+            bit = 1 if (byte >> ix) & 1 else 0
 
-            GPIO.output(self.data_pin, bit)
+            self.pi.write(self.data_pin, bit)
             time.sleep(0.001)  # Shorter delay
 
             # Now pulse the clock
-            GPIO.output(self.clock_pin, GPIO.HIGH)
+            self.pi.write(self.clock_pin, 1)
             time.sleep(0.001)
-            GPIO.output(self.clock_pin, GPIO.LOW)
+            self.pi.write(self.clock_pin, 0)
 
         # Set data line LOW after shifting
-        GPIO.output(self.data_pin, GPIO.LOW)
+        self.pi.write(self.data_pin, 0)
         time.sleep(0.001)  # Let lines settle
 
         # Pulse the latch after the byte is sent
-        GPIO.output(self.latch_pin, GPIO.HIGH)
+        self.pi.write(self.latch_pin, 1)
         time.sleep(0.001)  # Short pulse
-        GPIO.output(self.latch_pin, GPIO.LOW)
+        self.pi.write(self.latch_pin, 0)
 
     def cleanup(self):
-        GPIO.cleanup()
+        self.pi.stop()
 
 class Connect():
     def __init__(self, data_pin, clock_pin):
-        self.conn= Connection(data_pin, clock_pin)
+        self.conn = Connection(data_pin, clock_pin)
 
     def __enter__(self):
         return self.conn
 
     def __exit__(self, type, value, traceback):
-
-        # Handle excpetions perhaps
-
         self.conn.cleanup()
 
 def main():
-
     with Connect(23, 24) as conn:
         conn.send_file('comm.py')
 
-
-
-        # for clk in range(8):
-        #     bit = ~bit
-        #
-            # conn.send_byte(bit)
-            # time.sleep(0.5)
-            #
-            # GPIO.output(conn.clock_pin, GPIO.HIGH)
-            # time.sleep(0.1)
-            # GPIO.output(conn.clock_pin, GPIO.LOW)
-
-main()
+if __name__ == "__main__":
+    main()
 

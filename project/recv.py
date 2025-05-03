@@ -1,4 +1,4 @@
-import RPi.GPIO as GPIO
+import pigpio
 import time
 
 # GPIO pins (BCM numbering)
@@ -12,10 +12,10 @@ bit_count    = 0
 # buffer to collect received bytes
 received = bytearray()
 
-def on_clock_rising(channel):
+def on_clock_rising(gpio, level, tick):
     global current_byte, bit_count
     # sample data bit
-    bit = GPIO.input(DATA_PIN)
+    bit = pi.read(DATA_PIN)
     # shift into current_byte
     current_byte = (current_byte << 1) | bit
     bit_count += 1
@@ -29,13 +29,20 @@ def on_clock_rising(channel):
         bit_count    = 0
 
 def main():
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setwarnings(False)
-    # enable internal pull-downs so pins idle at 0 when nothing is connected
-    GPIO.setup(DATA_PIN,  GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-    GPIO.setup(CLOCK_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-    # catch every rising edge (no bouncetime)
-    GPIO.add_event_detect(CLOCK_PIN, GPIO.RISING, callback=on_clock_rising)
+    global pi
+    # Initialize pigpio
+    pi = pigpio.pi()
+    if not pi.connected:
+        raise RuntimeError("Could not connect to pigpio daemon")
+
+    # Set up pins as inputs with pull-downs
+    pi.set_mode(DATA_PIN, pigpio.INPUT)
+    pi.set_mode(CLOCK_PIN, pigpio.INPUT)
+    pi.set_pull_up_down(DATA_PIN, pigpio.PUD_DOWN)
+    pi.set_pull_up_down(CLOCK_PIN, pigpio.PUD_DOWN)
+
+    # Set up callback for rising edge
+    cb = pi.callback(CLOCK_PIN, pigpio.RISING_EDGE, on_clock_rising)
 
     print("Waiting for data...  Press Ctrl-C to stop.")
     try:
@@ -44,8 +51,8 @@ def main():
     except KeyboardInterrupt:
         print("\nStopping.")
     finally:
-        GPIO.remove_event_detect(CLOCK_PIN)
-        GPIO.cleanup()
+        cb.cancel()  # Cancel the callback
+        pi.stop()    # Stop pigpio
         # write all bytes out
         with open("received.bin", "wb") as f:
             f.write(received)
