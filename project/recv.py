@@ -61,9 +61,10 @@ def on_clock_rising(gpio, level, tick):
             checksum = byte_value
             if verify_checksum(data_byte, checksum):
                 received.append(data_byte)
-                print(f"Received byte: 0x{data_byte:02X}")
+                # Print the character and flush to show it immediately
+                print(chr(data_byte), end='', flush=True)
             else:
-                print(f"Warning: Checksum error for byte 0x{data_byte:02X}")
+                print(f"\nWarning: Checksum error for byte 0x{data_byte:02X}")
         else:
             if byte_value == END_BYTE:
                 expecting_start = True
