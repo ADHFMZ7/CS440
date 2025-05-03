@@ -23,12 +23,15 @@ class Connection:
         # set clock pin as output
         self.data_pin = data_pin
         self.clock_pin = clock_pin
+        self.latch_pin = 25  # Add latch pin
 
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
 
         GPIO.setup(self.clock_pin, GPIO.OUT)
         GPIO.setup(self.data_pin, GPIO.OUT)
+        GPIO.setup(self.latch_pin, GPIO.OUT)  # Set up latch pin as output
+        GPIO.output(self.latch_pin, GPIO.LOW)  # Initialize latch to LOW
 
 
     def send_file(self, filename: str):
@@ -40,7 +43,6 @@ class Connection:
 
 
     def send_byte(self, byte):
-
         for ix in range(7, -1, -1):
             bit = GPIO.HIGH if (byte >> ix) & 1 else GPIO.LOW
 
@@ -51,6 +53,11 @@ class Connection:
             GPIO.output(self.clock_pin, GPIO.HIGH)
             time.sleep(0.1)
             GPIO.output(self.clock_pin, GPIO.LOW)
+        
+        # Pulse the latch after the byte is sent
+        GPIO.output(self.latch_pin, GPIO.HIGH)
+        time.sleep(0.1)
+        GPIO.output(self.latch_pin, GPIO.LOW)
 
     def cleanup(self):
         GPIO.cleanup()

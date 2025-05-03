@@ -31,10 +31,11 @@ def on_clock_rising(channel):
 def main():
     GPIO.setmode(GPIO.BCM)
     GPIO.setwarnings(False)
-    # data as input, clock as input with edge detection
-    GPIO.setup(DATA_PIN,  GPIO.IN)
-    GPIO.setup(CLOCK_PIN, GPIO.IN)
-    GPIO.add_event_detect(CLOCK_PIN, GPIO.RISING, callback=on_clock_rising, bouncetime=1)
+    # enable internal pull-downs so pins idle at 0 when nothing is connected
+    GPIO.setup(DATA_PIN,  GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+    GPIO.setup(CLOCK_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+    # catch every rising edge (no bouncetime)
+    GPIO.add_event_detect(CLOCK_PIN, GPIO.RISING, callback=on_clock_rising)
 
     print("Waiting for data...  Press Ctrl-C to stop.")
     try:
@@ -52,4 +53,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
