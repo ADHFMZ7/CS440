@@ -17,7 +17,7 @@ def on_clock_rising(gpio, level, tick):
     global current_byte, bit_count, last_tick
     
     # Check for timing errors (clocks too close together)
-    if last_tick != 0 and (tick - last_tick) < 500:  # 500μs minimum between clocks
+    if last_tick != 0 and (tick - last_tick) < 1000:  # 1ms minimum between clocks
         print(f"Warning: Clock timing error detected. Resetting byte.")
         current_byte = 0
         bit_count = 0
