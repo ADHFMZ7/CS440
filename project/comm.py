@@ -47,16 +47,20 @@ class Connection:
             bit = GPIO.HIGH if (byte >> ix) & 1 else GPIO.LOW
 
             GPIO.output(self.data_pin, bit)
-            time.sleep(0.1)
+            time.sleep(0.001)  # Shorter delay
 
             # Now pulse the clock
             GPIO.output(self.clock_pin, GPIO.HIGH)
-            time.sleep(0.1)
+            time.sleep(0.001)
             GPIO.output(self.clock_pin, GPIO.LOW)
-        
+
+        # Set data line LOW after shifting
+        GPIO.output(self.data_pin, GPIO.LOW)
+        time.sleep(0.001)  # Let lines settle
+
         # Pulse the latch after the byte is sent
         GPIO.output(self.latch_pin, GPIO.HIGH)
-        time.sleep(0.1)
+        time.sleep(0.001)  # Short pulse
         GPIO.output(self.latch_pin, GPIO.LOW)
 
     def cleanup(self):
