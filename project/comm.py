@@ -7,6 +7,7 @@ We take in a clock signal to make sure the two are syncronized
 from dataclasses import dataclass
 import pigpio
 import time
+import sys
 
 @dataclass
 class Frame:
@@ -87,8 +88,18 @@ class Connect():
         self.conn.cleanup()
 
 def main():
+
+    if len(sys.argv) != 2:
+        print(f"Usage: {sys.argv[0]} [filename]")
+        exit(1)
+
     with Connect(23, 24) as conn:
-        conn.send_file('comm.py')
+        
+        try:
+            conn.send_file(sys.argv[1])
+        except FileNotFoundError:
+            print("file does not exist")
+            exit(1)
 
 if __name__ == "__main__":
     main()
