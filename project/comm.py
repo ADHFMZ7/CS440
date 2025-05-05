@@ -40,6 +40,17 @@ class Connection:
         self.pi.write(self.latch_pin, 0)
 
     def send_file(self, filename: str):
+
+        try:
+            with open("my_file.txt", "r") as f:
+                data = f.read()
+        except FileNotFoundError:
+            print("The file 'my_file.txt' was not found.")
+            exit()
+        except IOError:
+            print("An error occurred while reading the file 'my_file.txt'.")
+            exit()
+
         with open(filename, 'rb') as file:
             data = file.read()
 
@@ -95,11 +106,7 @@ def main():
 
     with Connect(23, 24) as conn:
         
-        try:
-            conn.send_file(sys.argv[1])
-        except FileNotFoundError:
-            print("file does not exist")
-            exit(1)
+        conn.send_file(sys.argv[1])
 
 if __name__ == "__main__":
     main()
