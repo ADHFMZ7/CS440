@@ -58,6 +58,11 @@ class Connection:
                 input("Press Enter to send next byte...")
 
     def send_byte(self, byte):
+        # If in single-step mode, lower the latch from previous byte
+        if self.single_step and hasattr(self, 'last_byte_sent'):
+            self.pi.write(self.latch_pin, 0)
+            time.sleep(0.001)  # 1ms delay
+
         # Ensure data line is LOW before starting
         self.pi.write(self.data_pin, 0)
         self.pi.write(self.clock_pin, 0)
@@ -67,25 +72,32 @@ class Connection:
             # Set data line first
             bit = 1 if (byte >> ix) & 1 else 0
             self.pi.write(self.data_pin, bit)
-            time.sleep(0.0005)  # 500μs delay
+            time.sleep(0.001)  # 1ms delay
 
             # Then pulse clock
             self.pi.write(self.clock_pin, 1)
-            time.sleep(0.0005)  # 500μs delay
+            time.sleep(0.001)  # 1ms delay
             self.pi.write(self.clock_pin, 0)
-            time.sleep(0.0005)  # 500μs delay
+            time.sleep(0.001)  # 1ms delay
 
         # Set data line LOW after shifting
         self.pi.write(self.data_pin, 0)
-        time.sleep(0.0005)  # 500μs delay
+        time.sleep(0.001)  # 1ms delay
 
         # Pulse the latch after the byte is sent
         self.pi.write(self.latch_pin, 1)
-        time.sleep(0.0005)  # 500μs delay
-        self.pi.write(self.latch_pin, 0)
-        time.sleep(0.0005)  # 500μs delay
+        time.sleep(0.001)  # 1ms delay
+        
+        # In single-step mode, keep latch HIGH until next byte
+        if not self.single_step:
+            self.pi.write(self.latch_pin, 0)
+            time.sleep(0.001)  # 1ms delay
+            
+        self.last_byte_sent = True
 
     def cleanup(self):
+        # Ensure latch is LOW when cleaning up
+        self.pi.write(self.latch_pin, 0)
         self.pi.stop()
 
 class Connect():
