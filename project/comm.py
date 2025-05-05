@@ -42,7 +42,7 @@ class Connection:
     def send_file(self, filename: str):
 
         try:
-            with open("my_file.txt", "r") as f:
+            with open(filename, "r") as f:
                 data = f.read()
         except FileNotFoundError:
             print("The file 'my_file.txt' was not found.")
