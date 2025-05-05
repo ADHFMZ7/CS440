@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import pigpio
 import time
 import sys
+import argparse
 
 @dataclass
 class Frame:
@@ -18,11 +19,12 @@ class Frame:
         return f'{self.header}{self.payload}'
 
 class Connection:
-    def __init__(self, data_pin, clock_pin):
+    def __init__(self, data_pin, clock_pin, single_step=False):
         # Validate pins
         self.data_pin = data_pin
         self.clock_pin = clock_pin
         self.latch_pin = 25  # Add latch pin
+        self.single_step = single_step
 
         # Initialize pigpio
         self.pi = pigpio.pi()
@@ -40,22 +42,20 @@ class Connection:
         self.pi.write(self.latch_pin, 0)
 
     def send_file(self, filename: str):
-
         try:
-            with open(filename, "r") as f:
-                data = f.read()
+            with open(filename, 'rb') as file:
+                data = file.read()
         except FileNotFoundError:
-            print("The file 'my_file.txt' was not found.")
-            exit()
+            print(f"Error: File '{filename}' not found.")
+            sys.exit(1)
         except IOError:
-            print("An error occurred while reading the file 'my_file.txt'.")
-            exit()
-
-        with open(filename, 'rb') as file:
-            data = file.read()
+            print(f"Error: Could not read file '{filename}'.")
+            sys.exit(1)
 
         for byte in data:
             self.send_byte(byte)
+            if self.single_step:
+                input("Press Enter to send next byte...")
 
     def send_byte(self, byte):
         # Ensure data line is LOW before starting
@@ -89,8 +89,8 @@ class Connection:
         self.pi.stop()
 
 class Connect():
-    def __init__(self, data_pin, clock_pin):
-        self.conn = Connection(data_pin, clock_pin)
+    def __init__(self, data_pin, clock_pin, single_step=False):
+        self.conn = Connection(data_pin, clock_pin, single_step)
 
     def __enter__(self):
         return self.conn
@@ -99,14 +99,15 @@ class Connect():
         self.conn.cleanup()
 
 def main():
+    parser = argparse.ArgumentParser(description='Send a file over GPIO pins')
+    parser.add_argument('filename', help='The file to send')
+    parser.add_argument('-s', '--single-step', action='store_true', 
+                      help='Enable single-step mode (press Enter for each byte)')
+    
+    args = parser.parse_args()
 
-    if len(sys.argv) != 2:
-        print(f"Usage: {sys.argv[0]} [filename]")
-        exit(1)
-
-    with Connect(23, 24) as conn:
-        
-        conn.send_file(sys.argv[1])
+    with Connect(23, 24, args.single_step) as conn:
+        conn.send_file(args.filename)
 
 if __name__ == "__main__":
     main()

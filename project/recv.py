@@ -37,11 +37,10 @@ def on_clock_rising(gpio, level, tick):
         byte_value = current_byte & 0xFF
         received.append(byte_value)
         
-        # Print the actual byte with a small delay
+        # Print the actual byte
         try:
             char = chr(byte_value)
             print(char, end='', flush=True)
-            # time.sleep(0.01)  # 10ms delay to make it readable
         except:
             print(f"\\x{byte_value:02x}", end='', flush=True)  # Fallback to hex for non-printable chars
             
