@@ -2,6 +2,9 @@
 This defines a communication protocol between two raspberry pi's. It uses GPIO pins and allows for the two to communicate.
 
 We take in a clock signal to make sure the two are syncronized 
+
+Make sure the pigpio daemon is running:
+sudo pigpiod
 """
 
 from dataclasses import dataclass
