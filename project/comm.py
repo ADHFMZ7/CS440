@@ -52,10 +52,27 @@ class Connection:
             print(f"Error: Could not read file '{filename}'.")
             sys.exit(1)
 
+        byte_count = 0
         for byte in data:
-            self.send_byte(byte)
             if self.single_step:
+                # Show detailed byte information
+                binary = format(byte, '08b') 
+                try:
+                    char = chr(byte)
+                    if not char.isprintable():
+                        char = f"\\x{byte:02x}"
+                except:
+                    char = f"\\x{byte:02x}"
+                
+                print(f"\nSending byte {byte_count}:")
+                print(f"  Decimal: {byte}")
+                print(f"  Hex:     0x{byte:02x}")
+                print(f"  Binary:  {binary}")
+                print(f"  Char:    {char}")
                 input("Press Enter to send next byte...")
+            
+            self.send_byte(byte)
+            byte_count += 1
 
     def send_byte(self, byte):
         # If in single-step mode, lower the latch from previous byte
