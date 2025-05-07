@@ -40,16 +40,21 @@ class GPIOClient:
 
     def wait_for_clock_high(self):
         """Wait for clock to go high, indicating start of transmission"""
+        print("Client waiting for clock high...")
         while self.pi.read(self.clock_pin) == 0:
             time.sleep(0.001)
+        print("Client detected clock high")
 
     def wait_for_clock_low(self):
         """Wait for clock to go low"""
+        print("Client waiting for clock low...")
         while self.pi.read(self.clock_pin) == 1:
             time.sleep(0.001)
+        print("Client detected clock low")
 
     def receive_byte(self):
         """Receive a byte from the server"""
+        print("Client receiving byte...")
         # Switch to INPUT mode
         self.pi.set_mode(self.data_pin, pigpio.INPUT)
         
@@ -57,23 +62,26 @@ class GPIOClient:
         self.wait_for_clock_high()
         
         byte = 0
-        for _ in range(8):
+        for i in range(8):
             # Wait for clock to go low
             self.wait_for_clock_low()
             
             # Read data bit
             bit = self.pi.read(self.data_pin)
             byte = (byte << 1) | bit
+            print(f"Client received bit {i}: {bit}")
             
             # Wait for clock to go high
             self.wait_for_clock_high()
         
         # Switch back to OUTPUT mode
         self.pi.set_mode(self.data_pin, pigpio.OUTPUT)
+        print(f"Client received byte: {byte}")
         return byte
 
     def send_byte(self, byte):
         """Send a byte to the server"""
+        print(f"Client sending byte: {byte}")
         # Ensure we're in OUTPUT mode
         self.pi.set_mode(self.data_pin, pigpio.OUTPUT)
         
@@ -85,6 +93,7 @@ class GPIOClient:
         for ix in range(7, -1, -1):
             bit = 1 if (byte >> ix) & 1 else 0
             self.pi.write(self.data_pin, bit)
+            print(f"Client sending bit {7-ix}: {bit}")
             time.sleep(0.001)
 
             self.pi.write(self.clock_pin, 1)
@@ -99,21 +108,26 @@ class GPIOClient:
         time.sleep(0.001)
         self.pi.write(self.latch_pin, 0)
         time.sleep(0.001)
+        print("Client finished sending byte")
 
     def receive_response(self) -> Response:
         """Receive a response from the server"""
+        print("Client receiving response...")
         # Read length (2 bytes)
         length_high = self.receive_byte()
         length_low = self.receive_byte()
         length = (length_high << 8) | length_low
+        print(f"Client received response length: {length}")
         
         # Read response data
         data = bytearray()
-        for _ in range(length):
+        for i in range(length):
             data.append(self.receive_byte())
+            print(f"Client received byte {i+1}/{length}")
         
         # Parse response
         response_data = json.loads(data.decode())
+        print("Client parsed response data")
         return Response(
             status=response_data['status'],
             headers=response_data['headers'],
@@ -144,13 +158,16 @@ class GPIOClient:
         
         # Send length first
         length = len(request_bytes)
+        print(f"Client sending request length: {length}")
         self.send_byte((length >> 8) & 0xFF)  # High byte
         self.send_byte(length & 0xFF)         # Low byte
         
         # Send request
-        for byte in request_bytes:
+        for i, byte in enumerate(request_bytes):
+            print(f"Client sending request byte {i+1}/{len(request_bytes)}")
             self.send_byte(byte)
 
+        print("Client finished sending request, waiting for response...")
         # Receive response
         return self.receive_response()
 
