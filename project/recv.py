@@ -4,6 +4,7 @@ import time
 # GPIO pins (BCM numbering)
 DATA_PIN  = 23
 CLOCK_PIN = 24
+LATCH_PIN = 25  # Add latch pin
 
 # state for assembling one byte
 current_byte = 0
@@ -58,8 +59,10 @@ def main():
     # Set up pins as inputs with pull-downs
     pi.set_mode(DATA_PIN, pigpio.INPUT)
     pi.set_mode(CLOCK_PIN, pigpio.INPUT)
+    pi.set_mode(LATCH_PIN, pigpio.INPUT)
     pi.set_pull_up_down(DATA_PIN, pigpio.PUD_DOWN)
     pi.set_pull_up_down(CLOCK_PIN, pigpio.PUD_DOWN)
+    pi.set_pull_up_down(LATCH_PIN, pigpio.PUD_DOWN)
 
     # Set up callback for rising edge
     cb = pi.callback(CLOCK_PIN, pigpio.RISING_EDGE, on_clock_rising)
