@@ -8,9 +8,9 @@ import time
 import json
 
 class Server(Comm):
-    def __init__(self, data_pin=23, clock_pin=24):
+    def __init__(self, data_pin=23, clock_pin=24, latch_pin=25):
         # Initialize without latch pin
-        super().__init__(data_pin, clock_pin, latch_pin=None)
+        super().__init__(data_pin, clock_pin, latch_pin=latch_pin)
         self.running = False
         self.data = {}  # Simple in-memory storage
         
