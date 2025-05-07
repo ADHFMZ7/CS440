@@ -24,7 +24,7 @@ class Server(Comm):
             print("\nReceived request:")
             print("=" * 40)
             print(request_str, end="")
-            print("=" * 40)
+            print("\n" + "=" * 40)
             
             # Split into lines
             lines = request_str.strip().split('\n')
@@ -66,7 +66,7 @@ class Server(Comm):
             print("\nSending response:")
             print("=" * 40)
             print(response.decode('utf-8'), end="")
-            print("=" * 40)
+            print("\n" + "=" * 40)
             
             return response
                 
@@ -75,32 +75,24 @@ class Server(Comm):
             print("\nSending error response:")
             print("=" * 40)
             print(response.decode('utf-8'), end="")
-            print("=" * 40)
+            print("\n" + "=" * 40)
             return response
             
     def _handle_get(self, path, headers):
         """Handle GET request."""
         if path == "/":
             return self._success_response("Server is running")
-        elif path.startswith("/data/"):
-            key = path[6:]  # Remove "/data/" prefix
-            if key in self.data:
-                return self._success_response(json.dumps(self.data[key]))
-            else:
-                return self._error_response(f"Key not found: {key}")
+        elif path in self.data:
+            return self._success_response(json.dumps(self.data[path]))
         else:
             return self._error_response(f"Path not found: {path}")
             
     def _handle_post(self, path, headers, body):
         """Handle POST request."""
-        if not path.startswith("/data/"):
-            return self._error_response("POST requests must be to /data/ path")
-            
         try:
-            key = path[6:]  # Remove "/data/" prefix
             data = json.loads(body)
-            self.data[key] = data
-            return self._success_response(f"Data stored at {key}")
+            self.data[path] = data
+            return self._success_response(f"Data stored at {path}")
         except json.JSONDecodeError:
             return self._error_response("Invalid JSON in request body")
             

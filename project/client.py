@@ -116,14 +116,24 @@ if __name__ == "__main__":
                 print(f"Body: {response['body']}")
             elif command == 'post':
                 path = input("Enter path (e.g., /data/key): ")
-                data_str = input("Enter JSON data: ")
+                print("Enter JSON data (press Enter twice when done):")
+                json_lines = []
+                brace_count = 0
+                while True:
+                    line = input()
+                    json_lines.append(line)
+                    # Count opening and closing braces
+                    brace_count += line.count('{') - line.count('}')
+                    if brace_count == 0 and line.strip() == "":
+                        break
+                json_str = "\n".join(json_lines)
                 try:
-                    data = json.loads(data_str)
+                    data = json.loads(json_str)
                     response = client.post(path, data)
                     print(f"\nStatus: {response['status_code']} {response['status_text']}")
                     print(f"Body: {response['body']}")
-                except json.JSONDecodeError:
-                    print("Invalid JSON data")
+                except json.JSONDecodeError as e:
+                    print(f"Invalid JSON data: {str(e)}")
             else:
                 print("Unknown command")
             
