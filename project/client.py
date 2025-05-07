@@ -38,24 +38,24 @@ class GPIOClient:
     def send_bit(self, bit):
         """Send a single bit"""
         self.pi.write(self.data_pin, bit)
-        time.sleep(0.001)  # Small delay for signal stability
+        time.sleep(0.01)  # Increased delay for signal stability
         self.pi.write(self.clock_pin, 1)
-        time.sleep(0.001)  # Small delay for signal stability
+        time.sleep(0.01)  # Increased delay for signal stability
         self.pi.write(self.clock_pin, 0)
-        time.sleep(0.001)  # Small delay for signal stability
+        time.sleep(0.01)  # Increased delay for signal stability
 
     def receive_bit(self):
         """Receive a single bit"""
         # Wait for clock to go high
         while self.pi.read(self.clock_pin) == 0:
-            time.sleep(0.001)
+            time.sleep(0.01)  # Increased delay
         
         # Read data bit
         bit = self.pi.read(self.data_pin)
         
         # Wait for clock to go low
         while self.pi.read(self.clock_pin) == 1:
-            time.sleep(0.001)
+            time.sleep(0.01)  # Increased delay
         
         return bit
 
@@ -63,7 +63,7 @@ class GPIOClient:
         """Send a byte and wait for acknowledgment"""
         # Ensure we're in OUTPUT mode
         self.pi.set_mode(self.data_pin, pigpio.OUTPUT)
-        time.sleep(0.001)  # Small delay for mode switch
+        time.sleep(0.02)  # Increased delay for mode switch
         
         # Send each bit
         for i in range(7, -1, -1):
@@ -72,14 +72,14 @@ class GPIOClient:
         
         # Switch to INPUT mode to receive acknowledgment
         self.pi.set_mode(self.data_pin, pigpio.INPUT)
-        time.sleep(0.001)  # Small delay for mode switch
+        time.sleep(0.02)  # Increased delay for mode switch
         
         # Wait for acknowledgment
         while self.pi.read(self.clock_pin) == 0:
-            time.sleep(0.001)
+            time.sleep(0.01)  # Increased delay
         ack = self.pi.read(self.data_pin)
         while self.pi.read(self.clock_pin) == 1:
-            time.sleep(0.001)
+            time.sleep(0.01)  # Increased delay
         
         if not ack:
             raise RuntimeError("No acknowledgment received")
@@ -93,10 +93,10 @@ class GPIOClient:
         
         # Send acknowledgment bit
         self.pi.set_mode(self.data_pin, pigpio.OUTPUT)
-        time.sleep(0.001)  # Small delay for mode switch
+        time.sleep(0.02)  # Increased delay for mode switch
         self.send_bit(1)  # Send ACK (1)
         self.pi.set_mode(self.data_pin, pigpio.INPUT)
-        time.sleep(0.001)  # Small delay for mode switch
+        time.sleep(0.02)  # Increased delay for mode switch
         
         return byte
 
