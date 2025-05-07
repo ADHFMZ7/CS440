@@ -1,3 +1,7 @@
+"""
+Old code just used to test transmission times. This code uses functions that I have since changed.
+"""
+
 import pigpio
 import time
 import sys

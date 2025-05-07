@@ -4,7 +4,7 @@ This builds on top of the existing comm.py implementation but makes it more suit
 for interactive use in a Python interpreter.
 """
 
-from comm import Connection
+from connection import Connection
 import time
 
 class InteractiveConnection:
@@ -29,19 +29,3 @@ class InteractiveConnection:
     def cleanup(self):
         """Clean up the connection."""
         self.conn.cleanup()
-
-# Example usage:
-"""
-# Create a connection
-conn = InteractiveConnection()
-
-# Send some messages
-conn.send_message("Hello from Pi 1!")
-conn.send_message("This is another message")
-
-# Send raw bytes if needed
-conn.send_bytes(b'\x01\x02\x03')
-
-# When done
-conn.cleanup()
-""" 
