@@ -36,6 +36,10 @@ class Comm:
         
     def send_byte(self, byte):
         """Send a single byte."""
+        # Ensure we're in output mode
+        self.pi.set_mode(self.data_pin, pigpio.OUTPUT)
+        time.sleep(0.01)
+        
         # Set data line LOW before starting
         self.pi.write(self.data_pin, 0)
         time.sleep(0.01)  # Increased delay
@@ -65,8 +69,9 @@ class Comm:
         
     def receive_byte(self):
         """Receive a single byte."""
-        # Switch to input mode
+        # Switch to input mode with pull-down
         self.pi.set_mode(self.data_pin, pigpio.INPUT)
+        self.pi.set_pull_up_down(self.data_pin, pigpio.PUD_DOWN)
         time.sleep(0.01)  # Increased delay
         
         # Initialize byte
