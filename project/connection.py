@@ -78,11 +78,6 @@ class Connection:
             byte_count += 1
 
     def send_byte(self, byte):
-        # If in single-step mode, lower the latch from previous byte
-        if self.single_step and hasattr(self, 'last_byte_sent'):
-            self.pi.write(self.latch_pin, 0)
-            time.sleep(0.001)  # 1ms delay
-
         # Ensure data line is LOW before starting
         self.pi.write(self.data_pin, 0)
         self.pi.write(self.clock_pin, 0)
@@ -108,7 +103,8 @@ class Connection:
         self.pi.write(self.latch_pin, 1)
         time.sleep(0.001)  # 1ms delay
         
-        # In single-step mode, keep latch HIGH until next byte
+        # In single-step mode, we keep the latch HIGH to keep LEDs on
+        # In normal mode, we lower the latch after sending
         if not self.single_step:
             self.pi.write(self.latch_pin, 0)
             time.sleep(0.001)  # 1ms delay
