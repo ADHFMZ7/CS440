@@ -21,7 +21,6 @@ class GPIOClient:
     def __init__(self, data_pin=23, clock_pin=24):
         self.data_pin = data_pin
         self.clock_pin = clock_pin
-        self.latch_pin = 25
         
         # Initialize pigpio
         self.pi = pigpio.pi()
@@ -31,114 +30,75 @@ class GPIOClient:
         # Set up pins
         self.pi.set_mode(self.clock_pin, pigpio.OUTPUT)
         self.pi.set_mode(self.data_pin, pigpio.OUTPUT)  # Start in OUTPUT mode
-        self.pi.set_mode(self.latch_pin, pigpio.OUTPUT)
         
-        # Initialize all pins to LOW
+        # Initialize pins to LOW
         self.pi.write(self.clock_pin, 0)
         self.pi.write(self.data_pin, 0)
-        self.pi.write(self.latch_pin, 0)
 
-    def send_start_sequence(self):
-        """Send the start sequence (clock high, data high)"""
-        print("Sending start sequence...")
-        # Set both clock and data high
+    def send_bit(self, bit):
+        """Send a single bit"""
+        self.pi.write(self.data_pin, bit)
+        time.sleep(0.001)  # Small delay for signal stability
         self.pi.write(self.clock_pin, 1)
-        self.pi.write(self.data_pin, 1)
-        time.sleep(0.01)  # Wait for signal to stabilize
-        
-        # Set both back to low
+        time.sleep(0.001)  # Small delay for signal stability
         self.pi.write(self.clock_pin, 0)
-        self.pi.write(self.data_pin, 0)
-        time.sleep(0.01)  # Wait for signal to stabilize
+        time.sleep(0.001)  # Small delay for signal stability
 
-    def wait_for_clock_high(self):
-        """Wait for clock to go high, indicating start of transmission"""
+    def receive_bit(self):
+        """Receive a single bit"""
+        # Wait for clock to go high
         while self.pi.read(self.clock_pin) == 0:
             time.sleep(0.001)
-        time.sleep(0.001)  # Small delay to ensure signal is stable
-
-    def wait_for_clock_low(self):
-        """Wait for clock to go low"""
+        
+        # Read data bit
+        bit = self.pi.read(self.data_pin)
+        
+        # Wait for clock to go low
         while self.pi.read(self.clock_pin) == 1:
             time.sleep(0.001)
-        time.sleep(0.001)  # Small delay to ensure signal is stable
-
-    def receive_byte(self):
-        """Receive a byte from the server"""
-        # Switch to INPUT mode
-        self.pi.set_mode(self.data_pin, pigpio.INPUT)
-        time.sleep(0.01)  # Added delay after mode switch
         
-        # Wait for start of transmission
-        self.wait_for_clock_high()
-        
-        byte = 0
-        for i in range(8):
-            # Wait for clock to go low
-            self.wait_for_clock_low()
-            
-            # Read data bit
-            bit = self.pi.read(self.data_pin)
-            byte = (byte << 1) | bit
-            
-            # Wait for clock to go high
-            self.wait_for_clock_high()
-        
-        # Switch back to OUTPUT mode
-        self.pi.set_mode(self.data_pin, pigpio.OUTPUT)
-        time.sleep(0.01)  # Added delay after mode switch
-        return byte
+        return bit
 
     def send_byte(self, byte):
-        """Send a byte to the server"""
+        """Send a byte and wait for acknowledgment"""
         # Ensure we're in OUTPUT mode
         self.pi.set_mode(self.data_pin, pigpio.OUTPUT)
-        time.sleep(0.01)  # Added delay after mode switch
+        time.sleep(0.001)  # Small delay for mode switch
         
-        # Ensure data line is LOW before starting
-        self.pi.write(self.data_pin, 0)
-        self.pi.write(self.clock_pin, 0)
-        time.sleep(0.01)  # Increased delay
-
-        for ix in range(7, -1, -1):
-            bit = 1 if (byte >> ix) & 1 else 0
-            self.pi.write(self.data_pin, bit)
-            time.sleep(0.01)  # Increased delay
-
-            self.pi.write(self.clock_pin, 1)
-            time.sleep(0.01)  # Increased delay
-            self.pi.write(self.clock_pin, 0)
-            time.sleep(0.01)  # Increased delay
-
-        self.pi.write(self.data_pin, 0)
-        time.sleep(0.01)  # Increased delay
-
-        self.pi.write(self.latch_pin, 1)
-        time.sleep(0.01)  # Increased delay
-        self.pi.write(self.latch_pin, 0)
-        time.sleep(0.01)  # Increased delay
-
-    def receive_response(self) -> Response:
-        """Receive a response from the server"""
-        # Read length (2 bytes)
-        length_high = self.receive_byte()
-        time.sleep(0.05)  # Added delay between bytes
-        length_low = self.receive_byte()
-        length = (length_high << 8) | length_low
+        # Send each bit
+        for i in range(7, -1, -1):
+            bit = (byte >> i) & 1
+            self.send_bit(bit)
         
-        # Read response data
-        data = bytearray()
-        for i in range(length):
-            data.append(self.receive_byte())
-            time.sleep(0.05)  # Added delay between bytes
+        # Switch to INPUT mode to receive acknowledgment
+        self.pi.set_mode(self.data_pin, pigpio.INPUT)
+        time.sleep(0.001)  # Small delay for mode switch
         
-        # Parse response
-        response_data = json.loads(data.decode())
-        return Response(
-            status=response_data['status'],
-            headers=response_data['headers'],
-            body=bytes.fromhex(response_data['body']) if response_data['body'] else b''
-        )
+        # Wait for acknowledgment
+        while self.pi.read(self.clock_pin) == 0:
+            time.sleep(0.001)
+        ack = self.pi.read(self.data_pin)
+        while self.pi.read(self.clock_pin) == 1:
+            time.sleep(0.001)
+        
+        if not ack:
+            raise RuntimeError("No acknowledgment received")
+
+    def receive_byte(self):
+        """Receive a byte and send acknowledgment"""
+        byte = 0
+        for i in range(8):
+            bit = self.receive_bit()
+            byte = (byte << 1) | bit
+        
+        # Send acknowledgment bit
+        self.pi.set_mode(self.data_pin, pigpio.OUTPUT)
+        time.sleep(0.001)  # Small delay for mode switch
+        self.send_bit(1)  # Send ACK (1)
+        self.pi.set_mode(self.data_pin, pigpio.INPUT)
+        time.sleep(0.001)  # Small delay for mode switch
+        
+        return byte
 
     def send_request(self, request: Request) -> Response:
         """Send a request to the server and wait for response"""
@@ -153,54 +113,46 @@ class GPIOClient:
             except:
                 print(f"  Body: {request.body}")
 
-        try:
-            # Convert request to bytes
-            request_data = {
-                'method': request.method,
-                'path': request.path,
-                'headers': request.headers,
-                'body': request.body.hex()  # Convert bytes to hex string for JSON
-            }
-            request_bytes = json.dumps(request_data).encode() + b'\n'
-            
-            # Validate request size
-            if len(request_bytes) > 4096:  # 4KB max request size
-                raise ValueError(f"Request too large: {len(request_bytes)} bytes")
-            
-            print(f"Sending request of length: {len(request_bytes)} bytes")
-            
-            # Send start sequence
-            self.send_start_sequence()
-            time.sleep(0.05)  # Wait after start sequence
-            
-            # Send length first
-            length = len(request_bytes)
-            self.send_byte((length >> 8) & 0xFF)  # High byte
-            time.sleep(0.05)  # Added delay between bytes
-            self.send_byte(length & 0xFF)         # Low byte
-            time.sleep(0.05)  # Added delay between bytes
-            
-            # Send request
-            for i, byte in enumerate(request_bytes):
-                self.send_byte(byte)
-                if i < 10:  # Only print first 10 bytes
-                    print(f"Sent byte {i+1}: {byte} ('{chr(byte) if 32 <= byte <= 126 else '.'}')")
-                elif i == 10:
-                    print("...")
-                time.sleep(0.05)  # Added delay between bytes
+        # Convert request to bytes
+        request_data = {
+            'method': request.method,
+            'path': request.path,
+            'headers': request.headers,
+            'body': request.body.hex()  # Convert bytes to hex string for JSON
+        }
+        request_bytes = json.dumps(request_data).encode() + b'\n'
+        
+        # Send length first (2 bytes)
+        length = len(request_bytes)
+        self.send_byte((length >> 8) & 0xFF)  # High byte
+        self.send_byte(length & 0xFF)         # Low byte
+        
+        # Send request data
+        for byte in request_bytes:
+            self.send_byte(byte)
 
-            print("Request sent, waiting for response...")
-            # Receive response
-            return self.receive_response()
-            
-        except Exception as e:
-            print(f"Error sending request: {e}")
-            # Return error response
-            return Response(
-                500,
-                {"Content-Type": "text/plain"},
-                f"Internal Client Error: {str(e)}".encode()
-            )
+        # Receive response
+        return self.receive_response()
+
+    def receive_response(self) -> Response:
+        """Receive a response from the server"""
+        # Read length (2 bytes)
+        length_high = self.receive_byte()
+        length_low = self.receive_byte()
+        length = (length_high << 8) | length_low
+        
+        # Read response data
+        data = bytearray()
+        for _ in range(length):
+            data.append(self.receive_byte())
+        
+        # Parse response
+        response_data = json.loads(data.decode())
+        return Response(
+            status=response_data['status'],
+            headers=response_data['headers'],
+            body=bytes.fromhex(response_data['body']) if response_data['body'] else b''
+        )
 
     def cleanup(self):
         self.pi.stop()
