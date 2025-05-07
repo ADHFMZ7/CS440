@@ -42,15 +42,35 @@ class GPIOServer:
         self.storage = {}
         print("Server initialized and ready to receive requests")
 
+    def wait_for_start_sequence(self):
+        """Wait for the start sequence (clock high, data high)"""
+        print("Waiting for start sequence...")
+        while True:
+            # Wait for clock to go high
+            while self.pi.read(self.clock_pin) == 0:
+                time.sleep(0.001)
+            
+            # Check if data is also high
+            if self.pi.read(self.data_pin) == 1:
+                print("Start sequence detected")
+                time.sleep(0.01)  # Wait for signal to stabilize
+                return
+            
+            # If data wasn't high, wait for clock to go low and try again
+            while self.pi.read(self.clock_pin) == 1:
+                time.sleep(0.001)
+
     def wait_for_clock_high(self):
         """Wait for clock to go high, indicating start of transmission"""
         while self.pi.read(self.clock_pin) == 0:
-            time.sleep(0.005)  # Increased delay
+            time.sleep(0.001)
+        time.sleep(0.001)  # Small delay to ensure signal is stable
 
     def wait_for_clock_low(self):
         """Wait for clock to go low"""
         while self.pi.read(self.clock_pin) == 1:
-            time.sleep(0.005)  # Increased delay
+            time.sleep(0.001)
+        time.sleep(0.001)  # Small delay to ensure signal is stable
 
     def receive_byte(self):
         """Receive a byte from the client"""
@@ -136,6 +156,9 @@ class GPIOServer:
     def receive_request(self) -> Request:
         """Receive a request from the client"""
         try:
+            # Wait for start sequence
+            self.wait_for_start_sequence()
+            
             # Read length (2 bytes)
             length_high = self.receive_byte()
             time.sleep(0.05)  # Added delay between bytes

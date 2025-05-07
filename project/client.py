@@ -38,15 +38,30 @@ class GPIOClient:
         self.pi.write(self.data_pin, 0)
         self.pi.write(self.latch_pin, 0)
 
+    def send_start_sequence(self):
+        """Send the start sequence (clock high, data high)"""
+        print("Sending start sequence...")
+        # Set both clock and data high
+        self.pi.write(self.clock_pin, 1)
+        self.pi.write(self.data_pin, 1)
+        time.sleep(0.01)  # Wait for signal to stabilize
+        
+        # Set both back to low
+        self.pi.write(self.clock_pin, 0)
+        self.pi.write(self.data_pin, 0)
+        time.sleep(0.01)  # Wait for signal to stabilize
+
     def wait_for_clock_high(self):
         """Wait for clock to go high, indicating start of transmission"""
         while self.pi.read(self.clock_pin) == 0:
-            time.sleep(0.005)  # Increased delay
+            time.sleep(0.001)
+        time.sleep(0.001)  # Small delay to ensure signal is stable
 
     def wait_for_clock_low(self):
         """Wait for clock to go low"""
         while self.pi.read(self.clock_pin) == 1:
-            time.sleep(0.005)  # Increased delay
+            time.sleep(0.001)
+        time.sleep(0.001)  # Small delay to ensure signal is stable
 
     def receive_byte(self):
         """Receive a byte from the server"""
@@ -153,6 +168,10 @@ class GPIOClient:
                 raise ValueError(f"Request too large: {len(request_bytes)} bytes")
             
             print(f"Sending request of length: {len(request_bytes)} bytes")
+            
+            # Send start sequence
+            self.send_start_sequence()
+            time.sleep(0.05)  # Wait after start sequence
             
             # Send length first
             length = len(request_bytes)
