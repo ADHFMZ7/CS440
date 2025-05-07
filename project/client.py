@@ -7,7 +7,7 @@ import time
 
 class Client(Comm):
     def __init__(self, data_pin=23, clock_pin=24):
-        super().__init__(data_pin, clock_pin)
+        super().__init__(data_pin, clock_pin, use_latch=True)  # Enable latch for shift register
         
     def send(self, message):
         """Send a message and return the response."""
