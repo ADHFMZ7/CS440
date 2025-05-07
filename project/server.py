@@ -19,6 +19,7 @@ class Server(Comm):
             
             # Echo the message back with a prefix
             return f"Server received: {message_str}".encode('utf-8')
+        
         except Exception as e:
             return f"Error processing message: {str(e)}".encode('utf-8')
             

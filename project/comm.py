@@ -29,29 +29,30 @@ class Comm:
         # Initialize pins to LOW
         self.pi.write(self.clock_pin, 0)
         self.pi.write(self.data_pin, 0)
+        time.sleep(0.01)  # Give time for pins to stabilize
         
     def send_byte(self, byte):
         """Send a single byte."""
         # Set data line LOW before starting
         self.pi.write(self.data_pin, 0)
-        time.sleep(0.001)
+        time.sleep(0.01)  # Increased delay
         
         # Send each bit
         for i in range(7, -1, -1):
             # Set data line
             bit = (byte >> i) & 1
             self.pi.write(self.data_pin, bit)
-            time.sleep(0.001)
+            time.sleep(0.01)  # Increased delay
             
             # Pulse clock
             self.pi.write(self.clock_pin, 1)
-            time.sleep(0.001)
+            time.sleep(0.01)  # Increased delay
             self.pi.write(self.clock_pin, 0)
-            time.sleep(0.001)
+            time.sleep(0.01)  # Increased delay
             
         # Set data line LOW after byte
         self.pi.write(self.data_pin, 0)
-        time.sleep(0.001)
+        time.sleep(0.01)  # Increased delay
         
     def receive_byte(self):
         """Receive a single byte."""
@@ -59,7 +60,7 @@ class Comm:
         
         # Switch to input mode
         self.pi.set_mode(self.data_pin, pigpio.INPUT)
-        time.sleep(0.001)
+        time.sleep(0.01)  # Increased delay
         
         # Receive each bit
         for i in range(8):
@@ -70,6 +71,7 @@ class Comm:
             # Read data bit
             bit = self.pi.read(self.data_pin)
             byte = (byte << 1) | bit
+            time.sleep(0.01)  # Added delay after reading bit
             
             # Wait for clock low
             while self.pi.read(self.clock_pin) == 1:
@@ -77,7 +79,7 @@ class Comm:
                 
         # Switch back to output mode
         self.pi.set_mode(self.data_pin, pigpio.OUTPUT)
-        time.sleep(0.001)
+        time.sleep(0.01)  # Increased delay
         
         return byte
         
@@ -86,9 +88,11 @@ class Comm:
         # Send the message
         for byte in message:
             self.send_byte(byte)
+            time.sleep(0.01)  # Added delay between bytes
             
         # Send null byte to indicate end of transmission
         self.send_byte(0)
+        time.sleep(0.01)  # Added delay after null byte
         
         # Switch to receive mode
         response = bytearray()
@@ -97,6 +101,7 @@ class Comm:
             if byte == 0:  # End of response
                 break
             response.append(byte)
+            time.sleep(0.01)  # Added delay between received bytes
             
         return bytes(response)
         
@@ -109,16 +114,20 @@ class Comm:
             if byte == 0:  # End of message
                 break
             message.append(byte)
+            time.sleep(0.01)  # Added delay between received bytes
             
         # Process message and prepare response
         response = self.process_message(bytes(message))
+        time.sleep(0.01)  # Added delay before sending response
         
         # Send response
         for byte in response:
             self.send_byte(byte)
+            time.sleep(0.01)  # Added delay between bytes
             
         # Send null byte to indicate end of response
         self.send_byte(0)
+        time.sleep(0.01)  # Added delay after null byte
         
     def process_message(self, message):
         """Process received message and return response.
