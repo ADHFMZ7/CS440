@@ -83,6 +83,7 @@ class Connection:
         self.pi.write(self.clock_pin, 0)
         time.sleep(0.001)  # 1ms delay to ensure stable start
 
+        # Shift out the byte
         for ix in range(7, -1, -1):
             # Set data line first
             bit = 1 if (byte >> ix) & 1 else 0
@@ -99,8 +100,10 @@ class Connection:
         self.pi.write(self.data_pin, 0)
         time.sleep(0.001)  # 1ms delay
 
-        # Pulse the latch after the byte is sent
-        self.pi.write(self.latch_pin, 1)
+        # Pulse the latch to update the output
+        self.pi.write(self.latch_pin, 0)  # First ensure latch is low
+        time.sleep(0.001)  # 1ms delay
+        self.pi.write(self.latch_pin, 1)  # Then pulse high
         time.sleep(0.001)  # 1ms delay
         
         # In single-step mode, we keep the latch HIGH to keep LEDs on
