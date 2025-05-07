@@ -12,11 +12,12 @@ import pigpio
 import time
 
 class Comm:
-    def __init__(self, data_pin=23, clock_pin=24):
-        """Initialize communication with default pins (23 for data, 24 for clock)."""
+    def __init__(self, data_pin=23, clock_pin=24, latch_pin=None):
+        """Initialize communication with default pins (23 for data, 24 for clock).
+        latch_pin is optional and only used for shift register display."""
         self.data_pin = data_pin
         self.clock_pin = clock_pin
-        self.latch_pin = 25  # Latch pin for shift register
+        self.latch_pin = latch_pin
         
         # Initialize pigpio
         self.pi = pigpio.pi()
@@ -26,12 +27,16 @@ class Comm:
         # Set up pins
         self.pi.set_mode(self.clock_pin, pigpio.OUTPUT)
         self.pi.set_mode(self.data_pin, pigpio.OUTPUT)
-        self.pi.set_mode(self.latch_pin, pigpio.OUTPUT)
         
         # Initialize pins to LOW
         self.pi.write(self.clock_pin, 0)
         self.pi.write(self.data_pin, 0)
-        self.pi.write(self.latch_pin, 0)
+        
+        # Set up latch pin if provided
+        if self.latch_pin is not None:
+            self.pi.set_mode(self.latch_pin, pigpio.OUTPUT)
+            self.pi.write(self.latch_pin, 0)
+            
         time.sleep(0.01)  # Give time for pins to stabilize
         
     def send_byte(self, byte):
@@ -61,11 +66,12 @@ class Comm:
         self.pi.write(self.data_pin, 0)
         time.sleep(0.01)  # Increased delay
         
-        # Pulse latch to update shift register
-        self.pi.write(self.latch_pin, 1)
-        time.sleep(0.01)  # Increased delay
-        self.pi.write(self.latch_pin, 0)
-        time.sleep(0.01)  # Increased delay
+        # Pulse latch to update shift register if latch pin is configured
+        if self.latch_pin is not None:
+            self.pi.write(self.latch_pin, 1)
+            time.sleep(0.01)  # Increased delay
+            self.pi.write(self.latch_pin, 0)
+            time.sleep(0.01)  # Increased delay
         
     def receive_byte(self):
         """Receive a single byte."""
