@@ -12,11 +12,11 @@ import pigpio
 import time
 
 class Comm:
-    def __init__(self, data_pin=23, clock_pin=24, use_latch=False):
+    def __init__(self, data_pin=23, clock_pin=24):
         """Initialize communication with default pins (23 for data, 24 for clock)."""
         self.data_pin = data_pin
         self.clock_pin = clock_pin
-        self.use_latch = use_latch
+        self.latch_pin = 25  # Latch pin for shift register
         
         # Initialize pigpio
         self.pi = pigpio.pi()
@@ -26,17 +26,12 @@ class Comm:
         # Set up pins
         self.pi.set_mode(self.clock_pin, pigpio.OUTPUT)
         self.pi.set_mode(self.data_pin, pigpio.OUTPUT)
+        self.pi.set_mode(self.latch_pin, pigpio.OUTPUT)
         
         # Initialize pins to LOW
         self.pi.write(self.clock_pin, 0)
         self.pi.write(self.data_pin, 0)
-        
-        # Set up latch pin if needed
-        if self.use_latch:
-            self.latch_pin = 25
-            self.pi.set_mode(self.latch_pin, pigpio.OUTPUT)
-            self.pi.write(self.latch_pin, 0)
-            
+        self.pi.write(self.latch_pin, 0)
         time.sleep(0.01)  # Give time for pins to stabilize
         
     def send_byte(self, byte):
@@ -62,18 +57,16 @@ class Comm:
         self.pi.write(self.data_pin, 0)
         time.sleep(0.01)  # Increased delay
         
-        # Pulse latch to update shift register if using latch
-        if self.use_latch:
-            self.pi.write(self.latch_pin, 1)
-            time.sleep(0.01)  # Increased delay
-            self.pi.write(self.latch_pin, 0)
-            time.sleep(0.01)  # Increased delay
+        # Pulse latch to update shift register
+        self.pi.write(self.latch_pin, 1)
+        time.sleep(0.01)  # Increased delay
+        self.pi.write(self.latch_pin, 0)
+        time.sleep(0.01)  # Increased delay
         
     def receive_byte(self):
         """Receive a single byte."""
-        # Switch to input mode and disable output
+        # Switch to input mode
         self.pi.set_mode(self.data_pin, pigpio.INPUT)
-        self.pi.write(self.data_pin, 0)  # Ensure output is disabled
         time.sleep(0.01)  # Increased delay
         
         # Initialize byte
@@ -95,7 +88,6 @@ class Comm:
         
         # Switch back to output mode
         self.pi.set_mode(self.data_pin, pigpio.OUTPUT)
-        self.pi.write(self.data_pin, 0)  # Ensure output starts LOW
         time.sleep(0.01)  # Increased delay
         
         return byte

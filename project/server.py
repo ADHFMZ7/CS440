@@ -7,7 +7,7 @@ import time
 
 class Server(Comm):
     def __init__(self, data_pin=23, clock_pin=24):
-        super().__init__(data_pin, clock_pin, use_latch=False)  # Server doesn't use latch
+        super().__init__(data_pin, clock_pin)
         self.running = False
         
     def process_message(self, message):
@@ -17,10 +17,11 @@ class Server(Comm):
             message_str = message.decode('utf-8')
             print(f"Received: {message_str}")
             
-            # Just echo back the message without any prefix
-            return message_str.encode('utf-8')
+            # Echo the message back with a prefix
+            return f"Server received: {message_str}".encode('utf-8')
+        
         except Exception as e:
-            return f"Error: {str(e)}".encode('utf-8')
+            return f"Error processing message: {str(e)}".encode('utf-8')
             
     def run(self):
         """Run the server, continuously waiting for messages."""
