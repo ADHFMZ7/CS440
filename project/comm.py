@@ -16,6 +16,7 @@ class Comm:
         """Initialize communication with default pins (23 for data, 24 for clock)."""
         self.data_pin = data_pin
         self.clock_pin = clock_pin
+        self.latch_pin = 25  # Latch pin for shift register
         
         # Initialize pigpio
         self.pi = pigpio.pi()
@@ -25,10 +26,12 @@ class Comm:
         # Set up pins
         self.pi.set_mode(self.clock_pin, pigpio.OUTPUT)
         self.pi.set_mode(self.data_pin, pigpio.OUTPUT)
+        self.pi.set_mode(self.latch_pin, pigpio.OUTPUT)
         
         # Initialize pins to LOW
         self.pi.write(self.clock_pin, 0)
         self.pi.write(self.data_pin, 0)
+        self.pi.write(self.latch_pin, 0)
         time.sleep(0.01)  # Give time for pins to stabilize
         
     def send_byte(self, byte):
@@ -54,29 +57,35 @@ class Comm:
         self.pi.write(self.data_pin, 0)
         time.sleep(0.01)  # Increased delay
         
+        # Pulse latch to update shift register
+        self.pi.write(self.latch_pin, 1)
+        time.sleep(0.01)  # Increased delay
+        self.pi.write(self.latch_pin, 0)
+        time.sleep(0.01)  # Increased delay
+        
     def receive_byte(self):
         """Receive a single byte."""
-        byte = 0
-        
         # Switch to input mode
         self.pi.set_mode(self.data_pin, pigpio.INPUT)
         time.sleep(0.01)  # Increased delay
+        
+        # Initialize byte
+        byte = 0
         
         # Receive each bit
         for i in range(8):
             # Wait for clock high
             while self.pi.read(self.clock_pin) == 0:
                 time.sleep(0.001)
-                
+            
             # Read data bit
             bit = self.pi.read(self.data_pin)
             byte = (byte << 1) | bit
-            time.sleep(0.01)  # Added delay after reading bit
             
             # Wait for clock low
             while self.pi.read(self.clock_pin) == 1:
                 time.sleep(0.001)
-                
+        
         # Switch back to output mode
         self.pi.set_mode(self.data_pin, pigpio.OUTPUT)
         time.sleep(0.01)  # Increased delay
