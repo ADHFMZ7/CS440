@@ -30,7 +30,7 @@ class GPIOClient:
 
         # Set up pins
         self.pi.set_mode(self.clock_pin, pigpio.OUTPUT)
-        self.pi.set_mode(self.data_pin, pigpio.OUTPUT)
+        self.pi.set_mode(self.data_pin, pigpio.OUTPUT)  # Start in OUTPUT mode
         self.pi.set_mode(self.latch_pin, pigpio.OUTPUT)
         
         # Initialize all pins to LOW
@@ -38,7 +38,45 @@ class GPIOClient:
         self.pi.write(self.data_pin, 0)
         self.pi.write(self.latch_pin, 0)
 
+    def wait_for_clock_high(self):
+        """Wait for clock to go high, indicating start of transmission"""
+        while self.pi.read(self.clock_pin) == 0:
+            time.sleep(0.001)
+
+    def wait_for_clock_low(self):
+        """Wait for clock to go low"""
+        while self.pi.read(self.clock_pin) == 1:
+            time.sleep(0.001)
+
+    def receive_byte(self):
+        """Receive a byte from the server"""
+        # Switch to INPUT mode
+        self.pi.set_mode(self.data_pin, pigpio.INPUT)
+        
+        # Wait for start of transmission
+        self.wait_for_clock_high()
+        
+        byte = 0
+        for _ in range(8):
+            # Wait for clock to go low
+            self.wait_for_clock_low()
+            
+            # Read data bit
+            bit = self.pi.read(self.data_pin)
+            byte = (byte << 1) | bit
+            
+            # Wait for clock to go high
+            self.wait_for_clock_high()
+        
+        # Switch back to OUTPUT mode
+        self.pi.set_mode(self.data_pin, pigpio.OUTPUT)
+        return byte
+
     def send_byte(self, byte):
+        """Send a byte to the server"""
+        # Ensure we're in OUTPUT mode
+        self.pi.set_mode(self.data_pin, pigpio.OUTPUT)
+        
         # Ensure data line is LOW before starting
         self.pi.write(self.data_pin, 0)
         self.pi.write(self.clock_pin, 0)
@@ -62,7 +100,28 @@ class GPIOClient:
         self.pi.write(self.latch_pin, 0)
         time.sleep(0.001)
 
+    def receive_response(self) -> Response:
+        """Receive a response from the server"""
+        # Read length (2 bytes)
+        length_high = self.receive_byte()
+        length_low = self.receive_byte()
+        length = (length_high << 8) | length_low
+        
+        # Read response data
+        data = bytearray()
+        for _ in range(length):
+            data.append(self.receive_byte())
+        
+        # Parse response
+        response_data = json.loads(data.decode())
+        return Response(
+            status=response_data['status'],
+            headers=response_data['headers'],
+            body=bytes.fromhex(response_data['body']) if response_data['body'] else b''
+        )
+
     def send_request(self, request: Request) -> Response:
+        """Send a request to the server and wait for response"""
         print(f"\nSending request:")
         print(f"  Method: {request.method}")
         print(f"  Path: {request.path}")
@@ -92,9 +151,8 @@ class GPIOClient:
         for byte in request_bytes:
             self.send_byte(byte)
 
-        # TODO: In a real implementation, we would receive the response here
-        # For now, we'll just return a dummy response
-        return Response(200, {}, b"Response received")
+        # Receive response
+        return self.receive_response()
 
     def cleanup(self):
         self.pi.stop()

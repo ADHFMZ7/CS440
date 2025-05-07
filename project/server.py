@@ -31,19 +31,54 @@ class GPIOServer:
 
         # Set up pins
         self.pi.set_mode(self.clock_pin, pigpio.OUTPUT)
-        self.pi.set_mode(self.data_pin, pigpio.OUTPUT)
+        self.pi.set_mode(self.data_pin, pigpio.INPUT)  # Start in INPUT mode
         self.pi.set_mode(self.latch_pin, pigpio.OUTPUT)
         
         # Initialize all pins to LOW
         self.pi.write(self.clock_pin, 0)
-        self.pi.write(self.data_pin, 0)
         self.pi.write(self.latch_pin, 0)
 
         # Simple in-memory storage
         self.storage = {}
         print("Server initialized and ready to receive requests")
 
+    def wait_for_clock_high(self):
+        """Wait for clock to go high, indicating start of transmission"""
+        while self.pi.read(self.clock_pin) == 0:
+            time.sleep(0.001)
+
+    def wait_for_clock_low(self):
+        """Wait for clock to go low"""
+        while self.pi.read(self.clock_pin) == 1:
+            time.sleep(0.001)
+
+    def receive_byte(self):
+        """Receive a byte from the client"""
+        # Ensure we're in INPUT mode
+        self.pi.set_mode(self.data_pin, pigpio.INPUT)
+        
+        # Wait for start of transmission
+        self.wait_for_clock_high()
+        
+        byte = 0
+        for _ in range(8):
+            # Wait for clock to go low
+            self.wait_for_clock_low()
+            
+            # Read data bit
+            bit = self.pi.read(self.data_pin)
+            byte = (byte << 1) | bit
+            
+            # Wait for clock to go high
+            self.wait_for_clock_high()
+        
+        return byte
+
     def send_byte(self, byte):
+        """Send a byte to the client"""
+        # Switch to OUTPUT mode
+        self.pi.set_mode(self.data_pin, pigpio.OUTPUT)
+        
         # Ensure data line is LOW before starting
         self.pi.write(self.data_pin, 0)
         self.pi.write(self.clock_pin, 0)
@@ -66,8 +101,12 @@ class GPIOServer:
         time.sleep(0.001)
         self.pi.write(self.latch_pin, 0)
         time.sleep(0.001)
+        
+        # Switch back to INPUT mode
+        self.pi.set_mode(self.data_pin, pigpio.INPUT)
 
     def send_response(self, response: Response):
+        """Send a response to the client"""
         # Convert response to bytes
         response_data = {
             'status': response.status,
@@ -84,6 +123,27 @@ class GPIOServer:
         # Send response
         for byte in response_bytes:
             self.send_byte(byte)
+
+    def receive_request(self) -> Request:
+        """Receive a request from the client"""
+        # Read length (2 bytes)
+        length_high = self.receive_byte()
+        length_low = self.receive_byte()
+        length = (length_high << 8) | length_low
+        
+        # Read request data
+        data = bytearray()
+        for _ in range(length):
+            data.append(self.receive_byte())
+        
+        # Parse request
+        request_data = json.loads(data.decode())
+        return Request(
+            method=request_data['method'],
+            path=request_data['path'],
+            headers=request_data['headers'],
+            body=bytes.fromhex(request_data['body']) if request_data['body'] else b''
+        )
 
     def handle_request(self, request: Request) -> Response:
         print(f"\nReceived request:")
@@ -146,9 +206,14 @@ def main():
     
     try:
         while True:
-            # In a real implementation, we would receive requests here
-            # For now, we'll just keep the server running
-            time.sleep(1)
+            try:
+                # Receive and handle request
+                request = server.receive_request()
+                response = server.handle_request(request)
+                server.send_response(response)
+            except Exception as e:
+                print(f"Error handling request: {e}")
+                time.sleep(0.1)  # Small delay to prevent CPU spinning on error
     except KeyboardInterrupt:
         print("\nStopping server...")
     finally:
