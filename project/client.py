@@ -23,6 +23,12 @@ class Client(Comm):
             request += f"{key}: {value}\n"
         request += "\n"
         
+        # Print request
+        print("\nSending request:")
+        print("=" * 40)
+        print(request, end="")
+        print("=" * 40)
+        
         # Send request and get response
         response = self.send_message(request.encode('utf-8'))
         return self._parse_response(response)
@@ -43,6 +49,12 @@ class Client(Comm):
             request += f"{key}: {value}\n"
         request += "\n"
         request += body
+        
+        # Print request
+        print("\nSending request:")
+        print("=" * 40)
+        print(request, end="")
+        print("=" * 40)
         
         # Send request and get response
         response = self.send_message(request.encode('utf-8'))

@@ -19,7 +19,12 @@ class Server(Comm):
         try:
             # Parse the request
             request_str = message.decode('utf-8')
-            print(f"Received request: {request_str}")
+            
+            # Print request
+            print("\nReceived request:")
+            print("=" * 40)
+            print(request_str, end="")
+            print("=" * 40)
             
             # Split into lines
             lines = request_str.strip().split('\n')
@@ -51,14 +56,27 @@ class Server(Comm):
             
             # Handle request based on method
             if method == "GET":
-                return self._handle_get(path, headers)
+                response = self._handle_get(path, headers)
             elif method == "POST":
-                return self._handle_post(path, headers, body)
+                response = self._handle_post(path, headers, body)
             else:
-                return self._error_response(f"Unsupported method: {method}")
+                response = self._error_response(f"Unsupported method: {method}")
+                
+            # Print response
+            print("\nSending response:")
+            print("=" * 40)
+            print(response.decode('utf-8'), end="")
+            print("=" * 40)
+            
+            return response
                 
         except Exception as e:
-            return self._error_response(f"Error processing request: {str(e)}")
+            response = self._error_response(f"Error processing request: {str(e)}")
+            print("\nSending error response:")
+            print("=" * 40)
+            print(response.decode('utf-8'), end="")
+            print("=" * 40)
+            return response
             
     def _handle_get(self, path, headers):
         """Handle GET request."""
@@ -107,7 +125,8 @@ class Server(Comm):
     def run(self):
         """Run the server, continuously waiting for messages."""
         self.running = True
-        print("Server started, waiting for requests...")
+        print("\nServer started, waiting for requests...")
+        print("=" * 40)
         
         try:
             while self.running:
