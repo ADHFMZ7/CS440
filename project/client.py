@@ -138,29 +138,50 @@ class GPIOClient:
             except:
                 print(f"  Body: {request.body}")
 
-        # Convert request to bytes
-        request_data = {
-            'method': request.method,
-            'path': request.path,
-            'headers': request.headers,
-            'body': request.body.hex()  # Convert bytes to hex string for JSON
-        }
-        request_bytes = json.dumps(request_data).encode() + b'\n'
-        
-        # Send length first
-        length = len(request_bytes)
-        self.send_byte((length >> 8) & 0xFF)  # High byte
-        time.sleep(0.05)  # Added delay between bytes
-        self.send_byte(length & 0xFF)         # Low byte
-        time.sleep(0.05)  # Added delay between bytes
-        
-        # Send request
-        for byte in request_bytes:
-            self.send_byte(byte)
+        try:
+            # Convert request to bytes
+            request_data = {
+                'method': request.method,
+                'path': request.path,
+                'headers': request.headers,
+                'body': request.body.hex()  # Convert bytes to hex string for JSON
+            }
+            request_bytes = json.dumps(request_data).encode() + b'\n'
+            
+            # Validate request size
+            if len(request_bytes) > 4096:  # 4KB max request size
+                raise ValueError(f"Request too large: {len(request_bytes)} bytes")
+            
+            print(f"Sending request of length: {len(request_bytes)} bytes")
+            
+            # Send length first
+            length = len(request_bytes)
+            self.send_byte((length >> 8) & 0xFF)  # High byte
             time.sleep(0.05)  # Added delay between bytes
+            self.send_byte(length & 0xFF)         # Low byte
+            time.sleep(0.05)  # Added delay between bytes
+            
+            # Send request
+            for i, byte in enumerate(request_bytes):
+                self.send_byte(byte)
+                if i < 10:  # Only print first 10 bytes
+                    print(f"Sent byte {i+1}: {byte} ('{chr(byte) if 32 <= byte <= 126 else '.'}')")
+                elif i == 10:
+                    print("...")
+                time.sleep(0.05)  # Added delay between bytes
 
-        # Receive response
-        return self.receive_response()
+            print("Request sent, waiting for response...")
+            # Receive response
+            return self.receive_response()
+            
+        except Exception as e:
+            print(f"Error sending request: {e}")
+            # Return error response
+            return Response(
+                500,
+                {"Content-Type": "text/plain"},
+                f"Internal Client Error: {str(e)}".encode()
+            )
 
     def cleanup(self):
         self.pi.stop()

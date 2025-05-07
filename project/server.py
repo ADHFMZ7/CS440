@@ -135,31 +135,68 @@ class GPIOServer:
 
     def receive_request(self) -> Request:
         """Receive a request from the client"""
-        # Read length (2 bytes)
-        length_high = self.receive_byte()
-        time.sleep(0.05)  # Added delay between bytes
-        length_low = self.receive_byte()
-        length = (length_high << 8) | length_low
-        
-        # Read request data
-        data = bytearray()
-        for i in range(length):
-            byte = self.receive_byte()
-            data.append(byte)
-            if i < 10:  # Only print first 10 bytes to avoid overwhelming output
-                print(f"Received byte {i+1}: {byte} ('{chr(byte) if 32 <= byte <= 126 else '.'}')")
-            elif i == 10:
-                print("...")
+        try:
+            # Read length (2 bytes)
+            length_high = self.receive_byte()
             time.sleep(0.05)  # Added delay between bytes
-        
-        # Parse request
-        request_data = json.loads(data.decode())
-        return Request(
-            method=request_data['method'],
-            path=request_data['path'],
-            headers=request_data['headers'],
-            body=bytes.fromhex(request_data['body']) if request_data['body'] else b''
-        )
+            length_low = self.receive_byte()
+            length = (length_high << 8) | length_low
+            
+            # Validate length (reasonable maximum size)
+            if length > 4096:  # 4KB max request size
+                raise ValueError(f"Request too large: {length} bytes")
+            if length < 1:
+                raise ValueError(f"Invalid request length: {length} bytes")
+            
+            print(f"Expecting request of length: {length} bytes")
+            
+            # Read request data
+            data = bytearray()
+            for i in range(length):
+                byte = self.receive_byte()
+                data.append(byte)
+                if i < 10:  # Only print first 10 bytes to avoid overwhelming output
+                    print(f"Received byte {i+1}: {byte} ('{chr(byte) if 32 <= byte <= 126 else '.'}')")
+                elif i == 10:
+                    print("...")
+                time.sleep(0.05)  # Added delay between bytes
+            
+            # Try to decode and validate JSON
+            try:
+                request_str = data.decode('utf-8')
+                print(f"Received request string: {request_str[:100]}...")  # Print first 100 chars
+                request_data = json.loads(request_str)
+            except UnicodeDecodeError as e:
+                print(f"Failed to decode request as UTF-8: {e}")
+                print(f"Raw bytes: {data.hex()}")
+                raise ValueError("Invalid UTF-8 encoding in request")
+            except json.JSONDecodeError as e:
+                print(f"Failed to parse JSON: {e}")
+                print(f"Received data: {request_str}")
+                raise ValueError("Invalid JSON format in request")
+            
+            # Validate required fields
+            required_fields = ['method', 'path', 'headers']
+            missing_fields = [field for field in required_fields if field not in request_data]
+            if missing_fields:
+                raise ValueError(f"Missing required fields: {missing_fields}")
+            
+            return Request(
+                method=request_data['method'],
+                path=request_data['path'],
+                headers=request_data['headers'],
+                body=bytes.fromhex(request_data['body']) if request_data.get('body') else b''
+            )
+        except Exception as e:
+            print(f"Error receiving request: {e}")
+            # Send error response
+            error_response = Response(
+                400,
+                {"Content-Type": "text/plain"},
+                f"Bad Request: {str(e)}".encode()
+            )
+            self.send_response(error_response)
+            raise  # Re-raise to be caught by the main loop
 
     def handle_request(self, request: Request) -> Response:
         print(f"\nReceived request:")
