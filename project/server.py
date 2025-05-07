@@ -44,23 +44,19 @@ class GPIOServer:
 
     def wait_for_clock_high(self):
         """Wait for clock to go high, indicating start of transmission"""
-        print("Server waiting for clock high...")
         while self.pi.read(self.clock_pin) == 0:
-            time.sleep(0.001)
-        print("Server detected clock high")
+            time.sleep(0.005)  # Increased delay
 
     def wait_for_clock_low(self):
         """Wait for clock to go low"""
-        print("Server waiting for clock low...")
         while self.pi.read(self.clock_pin) == 1:
-            time.sleep(0.001)
-        print("Server detected clock low")
+            time.sleep(0.005)  # Increased delay
 
     def receive_byte(self):
         """Receive a byte from the client"""
-        print("Server receiving byte...")
         # Ensure we're in INPUT mode
         self.pi.set_mode(self.data_pin, pigpio.INPUT)
+        time.sleep(0.01)  # Added delay after mode switch
         
         # Wait for start of transmission
         self.wait_for_clock_high()
@@ -73,51 +69,48 @@ class GPIOServer:
             # Read data bit
             bit = self.pi.read(self.data_pin)
             byte = (byte << 1) | bit
-            print(f"Server received bit {i}: {bit}")
             
             # Wait for clock to go high
             self.wait_for_clock_high()
         
-        print(f"Server received byte: {byte}")
+        time.sleep(0.01)  # Added delay after byte reception
         return byte
 
     def send_byte(self, byte):
         """Send a byte to the client"""
-        print(f"Server sending byte: {byte}")
         # Switch to OUTPUT mode
         self.pi.set_mode(self.data_pin, pigpio.OUTPUT)
+        time.sleep(0.01)  # Added delay after mode switch
         
         # Ensure data line is LOW before starting
         self.pi.write(self.data_pin, 0)
         self.pi.write(self.clock_pin, 0)
-        time.sleep(0.001)
+        time.sleep(0.01)  # Increased delay
 
         for ix in range(7, -1, -1):
             bit = 1 if (byte >> ix) & 1 else 0
             self.pi.write(self.data_pin, bit)
-            print(f"Server sending bit {7-ix}: {bit}")
-            time.sleep(0.001)
+            time.sleep(0.01)  # Increased delay
 
             self.pi.write(self.clock_pin, 1)
-            time.sleep(0.001)
+            time.sleep(0.01)  # Increased delay
             self.pi.write(self.clock_pin, 0)
-            time.sleep(0.001)
+            time.sleep(0.01)  # Increased delay
 
         self.pi.write(self.data_pin, 0)
-        time.sleep(0.001)
+        time.sleep(0.01)  # Increased delay
 
         self.pi.write(self.latch_pin, 1)
-        time.sleep(0.001)
+        time.sleep(0.01)  # Increased delay
         self.pi.write(self.latch_pin, 0)
-        time.sleep(0.001)
+        time.sleep(0.01)  # Increased delay
         
         # Switch back to INPUT mode
         self.pi.set_mode(self.data_pin, pigpio.INPUT)
-        print("Server finished sending byte")
+        time.sleep(0.01)  # Added delay after mode switch
 
     def send_response(self, response: Response):
         """Send a response to the client"""
-        print("Server sending response...")
         # Convert response to bytes
         response_data = {
             'status': response.status,
@@ -128,33 +121,39 @@ class GPIOServer:
         
         # Send length first
         length = len(response_bytes)
-        print(f"Server sending response length: {length}")
+        print(f"Sending response ({length} bytes):")
         self.send_byte((length >> 8) & 0xFF)  # High byte
+        time.sleep(0.05)  # Added delay between bytes
         self.send_byte(length & 0xFF)         # Low byte
+        time.sleep(0.05)  # Added delay between bytes
         
         # Send response
         for byte in response_bytes:
             self.send_byte(byte)
-        print("Server finished sending response")
+            time.sleep(0.05)  # Added delay between bytes
+        print("Response sent")
 
     def receive_request(self) -> Request:
         """Receive a request from the client"""
-        print("Server receiving request...")
         # Read length (2 bytes)
         length_high = self.receive_byte()
+        time.sleep(0.05)  # Added delay between bytes
         length_low = self.receive_byte()
         length = (length_high << 8) | length_low
-        print(f"Server received request length: {length}")
         
         # Read request data
         data = bytearray()
         for i in range(length):
-            data.append(self.receive_byte())
-            print(f"Server received byte {i+1}/{length}")
+            byte = self.receive_byte()
+            data.append(byte)
+            if i < 10:  # Only print first 10 bytes to avoid overwhelming output
+                print(f"Received byte {i+1}: {byte} ('{chr(byte) if 32 <= byte <= 126 else '.'}')")
+            elif i == 10:
+                print("...")
+            time.sleep(0.05)  # Added delay between bytes
         
         # Parse request
         request_data = json.loads(data.decode())
-        print("Server parsed request data")
         return Request(
             method=request_data['method'],
             path=request_data['path'],
@@ -224,7 +223,7 @@ def main():
     try:
         while True:
             try:
-                print("\nServer waiting for request...")
+                print("\nWaiting for request...")
                 # Receive and handle request
                 request = server.receive_request()
                 response = server.handle_request(request)
