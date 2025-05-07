@@ -27,7 +27,7 @@ class Client(Comm):
         print("\nSending request:")
         print("=" * 40)
         print(request, end="")
-        print("=" * 40)
+        print("\n" + "=" * 40)
         
         # Send request and get response
         response = self.send_message(request.encode('utf-8'))
@@ -54,7 +54,7 @@ class Client(Comm):
         print("\nSending request:")
         print("=" * 40)
         print(request, end="")
-        print("=" * 40)
+        print("\n" + "=" * 40)
         
         # Send request and get response
         response = self.send_message(request.encode('utf-8'))
