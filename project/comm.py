@@ -71,8 +71,9 @@ class Comm:
         
     def receive_byte(self):
         """Receive a single byte."""
-        # Switch to input mode
+        # Switch to input mode and disable output
         self.pi.set_mode(self.data_pin, pigpio.INPUT)
+        self.pi.write(self.data_pin, 0)  # Ensure output is disabled
         time.sleep(0.01)  # Increased delay
         
         # Initialize byte
@@ -94,6 +95,7 @@ class Comm:
         
         # Switch back to output mode
         self.pi.set_mode(self.data_pin, pigpio.OUTPUT)
+        self.pi.write(self.data_pin, 0)  # Ensure output starts LOW
         time.sleep(0.01)  # Increased delay
         
         return byte
