@@ -41,6 +41,7 @@ class GPIOServer:
 
         # Simple in-memory storage
         self.storage = {}
+        print("Server initialized and ready to receive requests")
 
     def send_byte(self, byte):
         # Ensure data line is LOW before starting
@@ -85,16 +86,29 @@ class GPIOServer:
             self.send_byte(byte)
 
     def handle_request(self, request: Request) -> Response:
+        print(f"\nReceived request:")
+        print(f"  Method: {request.method}")
+        print(f"  Path: {request.path}")
+        print(f"  Headers: {request.headers}")
+        if request.body:
+            try:
+                body_str = request.body.decode()
+                print(f"  Body: {body_str}")
+            except:
+                print(f"  Body: {request.body}")
+
         if request.method == "GET":
             if request.path == "/":
-                return Response(200, {"Content-Type": "text/plain"}, b"GPIO Server is running!")
+                response = Response(200, {"Content-Type": "text/plain"}, b"GPIO Server is running!")
             elif request.path.startswith("/data/"):
                 key = request.path[6:]  # Remove "/data/" prefix
                 if key in self.storage:
-                    return Response(200, {"Content-Type": "application/json"}, 
-                                  json.dumps(self.storage[key]).encode())
-                return Response(404, {}, b"Not Found")
-            return Response(404, {}, b"Not Found")
+                    response = Response(200, {"Content-Type": "application/json"}, 
+                                     json.dumps(self.storage[key]).encode())
+                else:
+                    response = Response(404, {}, b"Not Found")
+            else:
+                response = Response(404, {}, b"Not Found")
             
         elif request.method == "POST":
             if request.path.startswith("/data/"):
@@ -102,12 +116,26 @@ class GPIOServer:
                 try:
                     data = json.loads(request.body)
                     self.storage[key] = data
-                    return Response(200, {}, b"OK")
+                    print(f"  Stored data for key '{key}': {data}")
+                    response = Response(200, {}, b"OK")
                 except:
-                    return Response(400, {}, b"Invalid JSON")
-            return Response(404, {}, b"Not Found")
+                    response = Response(400, {}, b"Invalid JSON")
+            else:
+                response = Response(404, {}, b"Not Found")
             
-        return Response(405, {}, b"Method Not Allowed")
+        else:
+            response = Response(405, {}, b"Method Not Allowed")
+
+        print(f"\nSending response:")
+        print(f"  Status: {response.status}")
+        print(f"  Headers: {response.headers}")
+        try:
+            body_str = response.body.decode()
+            print(f"  Body: {body_str}")
+        except:
+            print(f"  Body: {response.body}")
+
+        return response
 
     def cleanup(self):
         self.pi.stop()

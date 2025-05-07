@@ -11,6 +11,12 @@ class Request:
     headers: Dict[str, str]
     body: bytes = b''
 
+@dataclass
+class Response:
+    status: int
+    headers: Dict[str, str]
+    body: bytes
+
 class GPIOClient:
     def __init__(self, data_pin=23, clock_pin=24):
         self.data_pin = data_pin
@@ -56,7 +62,18 @@ class GPIOClient:
         self.pi.write(self.latch_pin, 0)
         time.sleep(0.001)
 
-    def send_request(self, request: Request):
+    def send_request(self, request: Request) -> Response:
+        print(f"\nSending request:")
+        print(f"  Method: {request.method}")
+        print(f"  Path: {request.path}")
+        print(f"  Headers: {request.headers}")
+        if request.body:
+            try:
+                body_str = request.body.decode()
+                print(f"  Body: {body_str}")
+            except:
+                print(f"  Body: {request.body}")
+
         # Convert request to bytes
         request_data = {
             'method': request.method,
@@ -75,6 +92,10 @@ class GPIOClient:
         for byte in request_bytes:
             self.send_byte(byte)
 
+        # TODO: In a real implementation, we would receive the response here
+        # For now, we'll just return a dummy response
+        return Response(200, {}, b"Response received")
+
     def cleanup(self):
         self.pi.stop()
 
@@ -86,8 +107,15 @@ def main():
         while True:
             # Example: Send a GET request to the root path
             request = Request("GET", "/", {"Content-Type": "text/plain"})
-            client.send_request(request)
-            print("Sent GET request to /")
+            response = client.send_request(request)
+            print(f"\nReceived response:")
+            print(f"  Status: {response.status}")
+            print(f"  Headers: {response.headers}")
+            try:
+                body_str = response.body.decode()
+                print(f"  Body: {body_str}")
+            except:
+                print(f"  Body: {response.body}")
             time.sleep(2)
 
             # Example: Send a POST request to store data
@@ -95,14 +123,28 @@ def main():
             request = Request("POST", "/data/test", 
                             {"Content-Type": "application/json"},
                             json.dumps(data).encode())
-            client.send_request(request)
-            print("Sent POST request to /data/test")
+            response = client.send_request(request)
+            print(f"\nReceived response:")
+            print(f"  Status: {response.status}")
+            print(f"  Headers: {response.headers}")
+            try:
+                body_str = response.body.decode()
+                print(f"  Body: {body_str}")
+            except:
+                print(f"  Body: {response.body}")
             time.sleep(2)
 
             # Example: Send a GET request to retrieve the stored data
             request = Request("GET", "/data/test", {"Content-Type": "application/json"})
-            client.send_request(request)
-            print("Sent GET request to /data/test")
+            response = client.send_request(request)
+            print(f"\nReceived response:")
+            print(f"  Status: {response.status}")
+            print(f"  Headers: {response.headers}")
+            try:
+                body_str = response.body.decode()
+                print(f"  Body: {body_str}")
+            except:
+                print(f"  Body: {response.body}")
             time.sleep(2)
 
     except KeyboardInterrupt:
