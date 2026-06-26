@@ -44,7 +44,9 @@ Rather than connecting the two devices directly, the communication line passes t
 
 The module uses shift registers to convert the incoming serial bit stream into parallel output, displaying the current transmitted byte on eight LEDs. This provides immediate visual feedback during development and greatly simplified debugging timing and synchronization issues.
 
-![gif of hardware](./media/hardware.gif)
+<p align="center">
+  <img src="./media/hardware.gif" alt="Hardware Demo" width="60%">
+</p>
 
 ---
 
